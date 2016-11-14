@@ -1,5 +1,5 @@
 # SimonBot
-My bot for the 2011 ants AI challenge at aichallenge.org .  It uses breadth-first search, A-star for  pathing and min-max for combat optimization.
+My bot for the 2011 ants AI challenge at aichallenge.org.   This is my first python project.  It isnt ranked as I discovered the website after the competition was over.   It uses breadth-first search, A-star for pathing and min-max for combat optimization.
 
 ######################################################
 ## FIRST, INSTALL THE VIZ_OVERLAY BY j-h-a into C:\Projets
