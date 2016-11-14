@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+from ants import *
+from visai import *
+import random
+
+SCENT_PASSES = 12
+VISAI = False
+DEBUGGING = False
+VISAI_DEBUGGING = False
+
+class MyBot:
+
+	def __init__( self ):
+		pass
+	
+	def do_setup( self, ants ):
+		
+		self.setup_vis()
+		
+	def setup_vis( self ):
+		'setup visualizing'
+		if VISAI:
+			self.visai = visAI( VISAI_DEBUGGING )
+		else:
+			self.visai = False
+			
+	################ THINGS ONLY USED FOR VISUALIZING AI #################
+		
+	def vis_food( self, food_loc ):
+		'visualize food'
+		if not self.visai:
+			return
+		
+		self.visai.vis_food( food_loc )
+		
+	def vis_ant_close_to_enemy( self, loc ):
+		if not self.visai:
+			return
+			
+		self.visai.vis_ant_close_to_enemy( loc )
+		
+	def vis_ant_in_sight_of_enemy( self, loc ):
+		if not self.visai:
+			return
+			
+		self.visai.vis_ant_in_sight_of_enemy( loc )	
+		
+	def vis_ant_charging( self, loc ):
+		if not self.visai:
+			return
+			
+		self.visai.vis_ant_charging( loc )	
+		
+		
+
+	#######################################################			
+		
+	def do_turn( self, ants ):
+		'main'
+
+		# track all moves, prevent collisions
+		orders = {}
+		
+		def already_moved( loc ):
+			if loc in orders.values():
+				return True 
+		
+		def can_move_to( new_loc ):
+			return ants.unoccupied( new_loc ) and new_loc not in orders
+			
+		def do_move_direction( loc, direction ):
+			new_loc = ants.destination( loc, direction )
+			if can_move_to( new_loc ):
+				ants.issue_order(( loc, direction ))
+				orders[new_loc] = loc
+				return True
+			else:
+				return False
+				
+		def do_move_location( loc, dest ):
+		
+			directions = ants.direction( loc, dest )
+
+			if ( len( directions ) == 1 ):
+			
+				original_direction = directions[0]
+				new_loc = ants.destination( loc, original_direction )
+				if not ants.passable( new_loc ):
+					return False
+					
+			for direction in directions:
+				if do_move_direction( loc, direction ):
+					targets[dest] = loc
+					return True
+					
+			return False	
+			
+		def unblock_own_hills():
+			for hill_loc in ants.my_hills():
+				if hill_loc in ants.my_ants() and hill_loc not in orders.values():
+					for direction in ( 's','e','w','n' ):
+						if do_move_direction( hill_loc, direction ):
+							break					
+
+		def finish_turn( timeout = True ):
+			if timeout:
+				ants.debug( 'finish_turn(): timeout' )
+		
+			unblock_own_hills()	
+			ants.bot_finish()
+		
+		
+	
+		###############################
+		
+		'GO'
+		
+		ants.bot_start()	# record time
+		
+		targets = {}
+		
+
+		# prevent stepping on own hill
+		for hill_loc in ants.my_hills():
+			orders[hill_loc] = None		
+		
+		# main loop
+		for ant_loc in ants.my_ants():
+		
+			if ants.time_remaining() < 20:
+				finish_turn()
+				return
+		
+			if already_moved( ant_loc ):
+				continue
+				
+			#######################
+			
+			scents = ants.get_scents( ant_loc )		# sort by strenght desc
+			if not scents:							
+				# this shouldn't happen
+				continue
+				
+
+			scents.insert( 2, ( ant_loc, 'dummy scent' ))
+			for loc, scent in scents:
+
+				if loc in ants.enemy_zones_influence:
+				
+					enemy_ants = ants.get_enemy_ants_controlling( loc )
+					min_enemy_weakness = ants.get_min_enemy_weakness( enemy_ants )
+					
+					extra_enemy_ants = ants.get_enemy_ants_possibly_controlling( loc )
+					if extra_enemy_ants:
+						possible_min_enemy_weakness = ants.get_possible_min_enemy_weakness( loc, extra_enemy_ants )
+						min_weakness = min( min_enemy_weakness, possible_min_enemy_weakness )
+					else:
+						min_weakness = min_enemy_weakness
+					
+					own_weakness = ants.enemy_zones_influence[loc]
+					
+					'''
+					ants.debug( '\ntarget loc: %s' % ( loc.__str__()))
+					
+					ants.debug( enemy_ants )
+					ants.debug( 'min. weakness: %s' % ( min_enemy_weakness ))
+					if extra_enemy_ants:
+						ants.debug( extra_enemy_ants )
+						ants.debug( 'possible min. weakness: %s' % ( possible_min_enemy_weakness ))	
+						
+					ants.debug( 'own/enemy: %s / %s' % ( own_weakness, min_weakness ))
+					'''
+					
+					# this be a dirty hack
+					if (( loc in ants.enemy_hill_locations() or loc in ants.food_neis ) and loc in ants.enemy_zones_attack ) or ( loc not in ants.enemy_hill_locations() and loc not in ants.food_neis ):
+
+						if min_enemy_weakness <= own_weakness and loc not in ants.enemy_hill_locations() and loc not in ants.food_neis:
+							continue
+
+						if min_enemy_weakness < own_weakness:
+							continue					
+					
+				if do_move_location( ant_loc, loc ) or loc == ant_loc:
+					ants.update_own_zone( ant_loc, loc )
+					break
+
+		finish_turn( timeout = False )
+				
+		
+			
+###########################################################			
+
+try:
+	Ants.run( MyBot(), passes = SCENT_PASSES, debugging = DEBUGGING )
+except KeyboardInterrupt:
+	print( 'ctrl-c, leaving ...' )	
