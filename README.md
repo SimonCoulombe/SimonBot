@@ -29,3 +29,5 @@ python "c:/projets/aichallenge/ants/playgame.py" "python c:/projets/SimonBot/Sim
 ## OPEN THE HTML FILE IN FIREFOX (google chrome and internet explorer dont work)
 #########################
 
+## View the wiki for screenshots of the log and visualisation.
+
